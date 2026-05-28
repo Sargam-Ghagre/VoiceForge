@@ -1,41 +1,78 @@
 // Handles microphone permission, short reference recording, playback, and upload readiness.
 import React from "react";
-import { Mic, Square, Upload } from "lucide-react";
+import { Mic, Square, Upload, CircleAlert } from "lucide-react";
 
 export default function VoiceRecorder({ onRecordingReady, disabled = false }) {
   const [isRecording, setIsRecording] = React.useState(false);
   const [audioUrl, setAudioUrl] = React.useState("");
   const [duration, setDuration] = React.useState(0);
+  const [recorderError, setRecorderError] = React.useState("");
   const recorderRef = React.useRef(null);
   const chunksRef = React.useRef([]);
   const timerRef = React.useRef(null);
   const streamRef = React.useRef(null);
 
   async function startRecording() {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    streamRef.current = stream;
-    chunksRef.current = [];
-    const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
-    recorderRef.current = recorder;
+    setRecorderError("");
+    setAudioUrl((previous) => {
+      if (previous) URL.revokeObjectURL(previous);
+      return "";
+    });
+    onRecordingReady(null);
 
-    recorder.ondataavailable = (event) => {
-      if (event.data.size > 0) chunksRef.current.push(event.data);
-    };
-    recorder.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-      const url = URL.createObjectURL(blob);
-      setAudioUrl((previous) => {
-        if (previous) URL.revokeObjectURL(previous);
-        return url;
-      });
-      onRecordingReady(blob);
-      streamRef.current?.getTracks().forEach((track) => track.stop());
-    };
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      chunksRef.current = [];
 
-    setDuration(0);
-    timerRef.current = window.setInterval(() => setDuration((value) => value + 1), 1000);
-    recorder.start();
-    setIsRecording(true);
+      let recorder;
+      try {
+        recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      } catch (mimeError) {
+        try {
+          recorder = new MediaRecorder(stream);
+        } catch (fallbackError) {
+          throw new Error("Recording format is not supported in this browser.");
+        }
+      }
+
+      recorderRef.current = recorder;
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) chunksRef.current.push(event.data);
+      };
+      recorder.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        const url = URL.createObjectURL(blob);
+        setAudioUrl((previous) => {
+          if (previous) URL.revokeObjectURL(previous);
+          return url;
+        });
+        onRecordingReady(blob);
+        streamRef.current?.getTracks().forEach((track) => track.stop());
+      };
+
+      setDuration(0);
+      timerRef.current = window.setInterval(() => setDuration((value) => value + 1), 1000);
+      recorder.start();
+      setIsRecording(true);
+    } catch (err) {
+      window.clearInterval(timerRef.current);
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+      }
+      setIsRecording(false);
+
+      let friendlyMessage = err?.message || String(err);
+      if (err?.name === "NotAllowedError" || err?.name === "PermissionDeniedError") {
+        friendlyMessage = "Microphone access denied. Please grant permission in your browser settings and try again.";
+      } else if (err?.name === "NotFoundError" || err?.name === "DevicesNotFoundError") {
+        friendlyMessage = "No microphone found. Please connect an input device and try again.";
+      }
+
+      setRecorderError(friendlyMessage);
+    }
   }
 
   function stopRecording() {
@@ -93,6 +130,13 @@ export default function VoiceRecorder({ onRecordingReady, disabled = false }) {
           </audio>
         )}
       </div>
+
+      {recorderError && (
+        <div className="mt-4 flex items-center gap-2 rounded-md border border-coral/40 bg-coral/10 p-3 text-sm font-semibold text-ink">
+          <CircleAlert size={18} aria-hidden="true" className="text-coral" />
+          <span>{recorderError}</span>
+        </div>
+      )}
 
       <div className="mt-4 flex items-center gap-2 text-sm text-ink/60">
         <Upload size={16} aria-hidden="true" />
