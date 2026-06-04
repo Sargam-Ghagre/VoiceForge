@@ -133,6 +133,39 @@ jobs:
               /##.*Proposed Solution/i.test(body) &&
               /##.*Acceptance Criteria/i.test(body);
 
+            function getCleanIssueBody(text) {
+              return (text || '')
+                .replace(/<!--[\s\S]*?-->/g, '')
+                .replace(/---/g, '')
+                .replace(/[#>*`\-\[\]]/g, '')
+                .replace(/\.\.\./g, '')
+                .trim();
+            }
+
+            function hasPlaceholderContent(text) {
+              const cleaned = getCleanIssueBody(text).toLowerCase();
+              const placeholders = [
+                'a clear and concise description',
+                'steps to reproduce the behavior',
+                "go to '",
+                "click on '",
+                "scroll to '",
+                'see error',
+                'what actually happens instead',
+                'if applicable, add screenshots',
+                'add any other context',
+                'browser: (e.g.',
+                'device: (e.g.',
+                'os: (e.g.',
+                'what problem does this feature solve',
+                'describe the solution you have in mind',
+                'have you considered any alternative',
+                'what does "done" look like'
+              ];
+
+              return placeholders.filter(placeholder => cleaned.includes(placeholder)).length >= 2;
+            }
+
             const templateProblems = [];
             const qualityProblems = [];
             const labelsToAdd = [];
@@ -152,8 +185,9 @@ jobs:
               if (isFeatureTemplate) labelsToAdd.push('enhancement');
             }
 
-            if ((body || '').replace(/<!--[\s\S]*?-->/g, '').trim().length < 80) {
-              qualityProblems.push('Please add enough detail so maintainers can review this issue.');
+            const cleanedBody = getCleanIssueBody(body);
+            if (cleanedBody.length < 160 || hasPlaceholderContent(body)) {
+              qualityProblems.push('Please replace the template placeholder text with enough real detail for maintainers to review this issue.');
               labelsToAdd.push('needs-quality');
             }
 
@@ -263,7 +297,7 @@ jobs:
               `| Area | Correction |\n` +
               `| --- | --- |\n` +
               `${templateProblems.length > 0 ? '| Template | Use one complete program issue template: GSSoC, NSOC, SSOC, or ELUSOC. |\n' : ''}` +
-              `${qualityProblems.length > 0 ? '| Details | Add clear context, expected behavior, screenshots/logs if useful, and enough steps for maintainers to understand the request. |\n' : ''}` +
+              `${qualityProblems.length > 0 ? '| Details | Replace placeholder text with clear context, expected behavior, screenshots/logs if useful, and enough steps for maintainers to understand the request. |\n' : ''}` +
               `\n### What Happens Next\n\n` +
               `Edit the issue body with the missing details. This comment will update automatically after the workflow runs again.\n\n` +
               `VoiceForge automation`;

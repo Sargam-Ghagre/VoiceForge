@@ -58,6 +58,7 @@ jobs:
               'needs-linked-issue': 'D93F0B',
               'needs-assignee-match': 'D93F0B',
               'needs-title': 'D93F0B',
+              'large PR': 'D93F0B',
               'size/xs': 'C2E0C6',
               'size/s': 'BFDADC',
               'size/m': 'D4C5F9',
@@ -326,6 +327,12 @@ jobs:
               per_page: 100
             });
 
+            const tooManyFilesChanged = files.length > 13;
+            if (tooManyFilesChanged) {
+              problems.push(`This PR changes ${files.length} files. VoiceForge keeps contributor PRs focused, so please recheck the changed files and reduce the PR to 13 files or fewer unless a maintainer explicitly approves the larger scope.`);
+              neutralLabelsToAdd.push('large PR');
+            }
+
             const totalChanges = files.reduce((sum, file) => sum + file.additions + file.deletions, 0);
             const sizeLabel =
               totalChanges <= 20 ? 'size/xs' :
@@ -368,6 +375,7 @@ jobs:
             if (requiredSections.every(section => section.test(body))) await removeLabel('needs-template');
             if (cleanedBody.length >= 120) await removeLabel('needs-quality');
             if (conventionalTitleRegex.test(title)) await removeLabel('needs-title');
+            if (!tooManyFilesChanged) await removeLabel('large PR');
 
             if (problems.length === 0) {
               await removeLabels(programLabels.filter(label => label !== matchedProgram.label));
@@ -468,6 +476,9 @@ jobs:
             }
             if (needsLabelsToAdd.includes('needs-quality')) {
               fixRows.push(['PR details', 'Fill the description and test steps with enough detail for maintainers to review the change.']);
+            }
+            if (neutralLabelsToAdd.includes('large PR')) {
+              fixRows.push(['Large PR', 'Please recheck the changed files, remove accidental edits, and keep this contribution polished and focused on one approved issue. If the larger scope is truly needed, ask a mentor before continuing.']);
             }
             if (!matchedProgram) {
               fixRows.push(['Program', 'Choose exactly one program: GSSoC, NSOC, SSOC, or ELUSOC.']);
