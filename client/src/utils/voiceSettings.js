@@ -36,7 +36,12 @@ export function loadVoiceSettings() {
   let parsed = {};
   try {
     const raw = localStorage.getItem(VOICE_SETTINGS_KEY);
-    if (raw) parsed = JSON.parse(raw);
+    if (raw) {
+      const candidate = JSON.parse(raw);
+      if (candidate !== null && typeof candidate === "object" && !Array.isArray(candidate)) {
+        parsed = candidate;
+      }
+    }
   } catch {
     // Malformed JSON — fall back to defaults for all keys.
   }
