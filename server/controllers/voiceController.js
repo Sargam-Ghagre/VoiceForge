@@ -181,10 +181,14 @@ export async function speak(request, response, next) {
     const trimmedText = typeof text === "string" ? text.trim() : "";
     const trimmedVoiceId = typeof voiceId === "string" ? voiceId.trim() : "";
 
-    if (!trimmedText && !trimmedVoiceId) {
-      response.status(400).json({ error: "Both text and voice_id are required." });
-      return;
-    }
+     if (!trimmedText) {
+       response.status(400).json({ error: "text is required and must not be blank." });
+       return;
+     }
+     if (!trimmedVoiceId) {
+       response.status(400).json({ error: "voice_id is required and must not be blank." });
+       return;
+     }
     if (!trimmedText) {
       response.status(400).json({ error: "text is required and must not be blank." });
       return;
