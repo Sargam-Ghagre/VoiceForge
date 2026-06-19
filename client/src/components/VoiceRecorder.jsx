@@ -6,6 +6,7 @@ export default function VoiceRecorder({ onRecordingReady, disabled = false }) {
   const [isRecording, setIsRecording] = React.useState(false);
   const [audioUrl, setAudioUrl] = React.useState("");
   const [duration, setDuration] = React.useState(0);
+  const durationRef = React.useRef(0);
   const [recorderError, setRecorderError] = React.useState("");
   const recorderRef = React.useRef(null);
   const chunksRef = React.useRef([]);
@@ -21,6 +22,7 @@ export default function VoiceRecorder({ onRecordingReady, disabled = false }) {
   async function startRecording() {
     setRecorderError("");
     setDuration(0);
+    durationRef.current = 0;
     setAudioUrl((previous) => {
       if (previous) URL.revokeObjectURL(previous);
       return "";
@@ -62,14 +64,18 @@ export default function VoiceRecorder({ onRecordingReady, disabled = false }) {
           if (previous) URL.revokeObjectURL(previous);
           return url;
         });
-        onRecordingReady(blob);
+        onRecordingReady(blob, durationRef.current);
         streamRef.current?.getTracks().forEach((track) => track.stop());
       };
 
       recorder.start();
       setIsRecording(true);
       timerRef.current = window.setInterval(() => {
-        setDuration((prev) => prev + 1);
+        setDuration((prev) => {
+          const next = prev + 1;
+          durationRef.current = next;
+          return next;
+        });
       }, 1000);
     } catch (err) {
       window.clearInterval(timerRef.current);
@@ -233,6 +239,13 @@ export default function VoiceRecorder({ onRecordingReady, disabled = false }) {
           </audio>
         )}
       </div>
+      
+      {audioUrl && duration < 10 && (
+        <div className="mt-4 rounded-md border border-amber-400/40 bg-amber-50 p-3 text-sm font-semibold text-ink flex items-center gap-2 dark:bg-amber-900/20 dark:text-amber-300">
+          <CircleAlert size={18} aria-hidden="true" className="text-amber-500" />
+          <span>Recording is too short. Please record at least 10 seconds for best results.</span>
+        </div>
+        )}
 
       {recorderError && (
         <div role="alert" aria-live="polite" className="mt-4 rounded-md border border-coral/40 bg-coral/10 p-3 text-sm font-semibold text-ink flex items-center gap-2">
